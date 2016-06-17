@@ -31,7 +31,8 @@ def main(job_id, params):
                                         dataset=params['dataset'][0], 
                                         use_dropout=params['use_dropout'][0],
                                         reload_=params['reload'][0],
-                                        times=params['times'][0]
+                                        times=params['times'][0],
+                                        lstm_layers=params['lstm_layers'][0]
                              )
 
 if __name__ == '__main__':
@@ -58,7 +59,8 @@ if __name__ == '__main__':
         'dataset': ['obj101'],
         'use_dropout': [True],
         'reload': [False],
-        'times': [30]
+        'times': [30],
+        'lstm_layers': [3]
     }
 
     if len(sys.argv) > 1:

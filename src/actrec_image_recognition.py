@@ -172,21 +172,23 @@ def param_init_lstm_cond(options, params, prefix='lstm_cond', nin=None, dim=None
         dimctx = options['dim']
 
     # input to LSTM
-    W = numpy.concatenate([norm_weight(nin,dim),
-                           norm_weight(nin,dim),
-                           norm_weight(nin,dim),
-                           norm_weight(nin,dim)], axis=1)
-    params[_p(prefix,'W')] = W
+		for i in xrange(lstm_layers):
+			W = numpy.concatenate([norm_weight(nin,dim),
+														 norm_weight(nin,dim),
+														 norm_weight(nin,dim),
+														 norm_weight(nin,dim)], axis=1)
+			params[_p(prefix,'W_%d'%i)] = W
 
     # LSTM to LSTM
-    U = numpy.concatenate([ortho_weight(dim),
+		for i in xrange(lstm_layers):
+			U = numpy.concatenate([ortho_weight(dim),
                            ortho_weight(dim),
                            ortho_weight(dim),
                            ortho_weight(dim)], axis=1)
-    params[_p(prefix,'U')] = U
+			params[_p(prefix,'U_%d'%i)] = U
 
-    # bias to LSTM
-    params[_p(prefix,'b')] = numpy.zeros((4 * dim,)).astype('float32')
+			# bias to LSTM
+			params[_p(prefix,'b_%d'%i)] = numpy.zeros((4 * dim,)).astype('float32')
 
     # attention: context -> hidden
     Wc_att = norm_weight(dimctx, ortho=False)
@@ -246,7 +248,7 @@ def lstm_cond_layer(tparams, state_below, options, prefix='lstm',
         # xt, ht-1, ct-1, alpha, ctx
         # attention
         # print '\n\ncheck\n\n'
-        pstate_ = tensor.dot(h_, tparams[_p(prefix,'Wd_att')]) # pstate_
+        pstate_ = tensor.dot(h_[-1], tparams[_p(prefix,'Wd_att')]) # pstate_
         pctx_ = tensor.dot(x_, tparams[_p(prefix,'Wc_att')]) + tparams[_p(prefix, 'b_att')]
         if options['n_layers_att'] > 1:
             for lidx in xrange(1, options['n_layers_att']):
@@ -263,24 +265,30 @@ def lstm_cond_layer(tparams, state_below, options, prefix='lstm',
         alpha = tensor.nnet.softmax(options['temperature_inverse']*alpha.reshape([alpha_shp[0],alpha_shp[1]])) # softmax
         ctx_ = (x_ * alpha[:,:,None]).sum(1) # current context
         # print '\n\ncheck\n\n'
+        h_list = []
+        c_list = []
+        for lstm_index in xrange(options["lstm_layers"]):
+					preact = tensor.dot(h_[lstm_index], tparams[_p(prefix, 'U_%d'%lstm_index)])
+					if lstm_index == 0:
+						preact += tensor.dot(ctx_, tparams[_p(prefix, 'W_%d'%lstm_index)]) + tparams[_p(prefix, 'b_%d'%lstm_index)]
+					else:
+						preact += tensor.dot(h_list[-1], tparams[_p(prefix, 'W_%d'%lstm_index)]) + tparams[_p(prefix, 'b_%d'%lstm_index)]
 
+					i = _slice(preact, 0, dim)              # z_it
+					f = _slice(preact, 1, dim)              # z_ft
+					o = _slice(preact, 2, dim)              # z_ot
+					i = tensor.nnet.sigmoid(i)              # it = sigmoid(z_it)
+					f = tensor.nnet.sigmoid(f)              # ft = sigmoid(z_ft)
+					o = tensor.nnet.sigmoid(o)              # ot = sigmoid(z_ot)
+					c = tensor.tanh(_slice(preact, 3, dim)) # at = tanh(z_at)
 
-        preact = tensor.dot(h_, tparams[_p(prefix, 'U')])
-        preact += tensor.dot(ctx_, tparams[_p(prefix, 'W')]) + tparams[_p(prefix, 'b')]
+					c = f * c_[lstm_index] + i * c                      # ct = ft * ct-1 + it * at
 
-        i = _slice(preact, 0, dim)              # z_it
-        f = _slice(preact, 1, dim)              # z_ft
-        o = _slice(preact, 2, dim)              # z_ot
-        i = tensor.nnet.sigmoid(i)              # it = sigmoid(z_it)
-        f = tensor.nnet.sigmoid(f)              # ft = sigmoid(z_ft)
-        o = tensor.nnet.sigmoid(o)              # ot = sigmoid(z_ot)
-        c = tensor.tanh(_slice(preact, 3, dim)) # at = tanh(z_at)
+					h = o * tensor.tanh(c)                  # ht = ot * thanh(ct)
+					h_list.append(h)
+					c_list.append(c)
 
-        c = f * c_ + i * c                      # ct = ft * ct-1 + it * at
-
-        h = o * tensor.tanh(c)                  # ht = ot * thanh(ct)
-
-        rval = [h, c, alpha, ctx_]
+        rval = [h_list, c_list, alpha, ctx_]
         # rval += [pstate_, pctx_, i, f, o, preact, alpha_pre]+pctx_list
         # print '\n\ncheck\n\n'
         return rval
@@ -289,8 +297,13 @@ def lstm_cond_layer(tparams, state_below, options, prefix='lstm',
     #_step0 = lambda h_, c_, a_, ct_, x_: _step(h_, c_, a_, ct_, x_)
 
     noseqs = [state_below]
-    outputs_info = [init_state,
-                    init_memory,
+    h_l = []
+    c_l = []
+    for i in xrange(options["lstm_layers"]):
+			h_l.append(init_state)
+			c_l.append(init_memory)
+    outputs_info = [h_l,
+                    c_l,
                     tensor.alloc(0., n_samples, n_annotations),
                     tensor.alloc(0., n_samples, options['ctx_dim'])]
     rval, updates = theano.scan(_step,
@@ -569,7 +582,8 @@ def train(dim_out=100, # hidden layer dim for outputs
           dataset='flickr8k', # dummy dataset, replace with video ones
           use_dropout=False,
           reload_=False,
-          times=30):
+          times=30,
+          lstm_layers=1):
 
     # Model options
     model_options = locals().copy()
