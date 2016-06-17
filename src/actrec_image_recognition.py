@@ -671,7 +671,7 @@ def train(dim_out=100, # hidden layer dim for outputs
 								for test_index in xrange(num_test_batches):
 									x, y = test.next_batch(valid_batch_size)
 									pred_, cost = f_preds(x, y)
-									acc = float(sum(pred_ == y.reshape(pred_.shape)) / pred_.shape[0]
+									acc = float(sum(pred_ == y.reshape(pred_.shape))) / pred_.shape[0]
 									cost_list.append(cost)
 									acc_list.append(acc)
 								cost_mean = numpy.mean(cost_list)
