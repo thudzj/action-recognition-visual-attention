@@ -172,15 +172,22 @@ def param_init_lstm_cond(options, params, prefix='lstm_cond', nin=None, dim=None
         dimctx = options['dim']
 
     # input to LSTM
-		for i in xrange(lstm_layers):
+    for i in xrange(options["lstm_layers"]):
+	if i == 0:
 			W = numpy.concatenate([norm_weight(nin,dim),
-														 norm_weight(nin,dim),
-														 norm_weight(nin,dim),
-														 norm_weight(nin,dim)], axis=1)
-			params[_p(prefix,'W_%d'%i)] = W
+						norm_weight(nin,dim),
+						norm_weight(nin,dim),
+						norm_weight(nin,dim)], axis=1)
+	else:
+			
+			W = numpy.concatenate([norm_weight(dim),
+                           norm_weight(dim),
+                           norm_weight(dim),
+                           norm_weight(dim)], axis=1)
+	params[_p(prefix,'W_%d'%i)] = W
 
     # LSTM to LSTM
-		for i in xrange(lstm_layers):
+    for i in xrange(options["lstm_layers"]):
 			U = numpy.concatenate([ortho_weight(dim),
                            ortho_weight(dim),
                            ortho_weight(dim),
@@ -230,7 +237,7 @@ def lstm_cond_layer(tparams, state_below, options, prefix='lstm',
     n_annotations = state_below.shape[1]
 
 
-    dim = tparams[_p(prefix, 'U')].shape[0]
+    dim = tparams[_p(prefix, 'U_0')].shape[0]
 
     # initial/previous state
     if init_state == None:
@@ -244,10 +251,12 @@ def lstm_cond_layer(tparams, state_below, options, prefix='lstm',
             return _x[:, :, n*dim:(n+1)*dim]
         return _x[:, n*dim:(n+1)*dim]
 
-    def _step(h_, c_, a_, ct_, x_):
+    def _step(h_0, h_1, h_2, c_0, c_1, c_2, a_, ct_, x_):
         # xt, ht-1, ct-1, alpha, ctx
         # attention
         # print '\n\ncheck\n\n'
+ 	h_ = [h_0, h_1, h_2]
+	c_ = [c_0, c_1, c_2]
         pstate_ = tensor.dot(h_[-1], tparams[_p(prefix,'Wd_att')]) # pstate_
         pctx_ = tensor.dot(x_, tparams[_p(prefix,'Wc_att')]) + tparams[_p(prefix, 'b_att')]
         if options['n_layers_att'] > 1:
@@ -288,7 +297,7 @@ def lstm_cond_layer(tparams, state_below, options, prefix='lstm',
 					h_list.append(h)
 					c_list.append(c)
 
-        rval = [h_list, c_list, alpha, ctx_]
+        rval = h_list + c_list + [alpha, ctx_]
         # rval += [pstate_, pctx_, i, f, o, preact, alpha_pre]+pctx_list
         # print '\n\ncheck\n\n'
         return rval
@@ -302,10 +311,7 @@ def lstm_cond_layer(tparams, state_below, options, prefix='lstm',
     for i in xrange(options["lstm_layers"]):
 			h_l.append(init_state)
 			c_l.append(init_memory)
-    outputs_info = [h_l,
-                    c_l,
-                    tensor.alloc(0., n_samples, n_annotations),
-                    tensor.alloc(0., n_samples, options['ctx_dim'])]
+    outputs_info =  h_l + c_l + [tensor.alloc(0., n_samples, n_annotations),tensor.alloc(0., n_samples, options['ctx_dim'])]
     rval, updates = theano.scan(_step,
                                 outputs_info=outputs_info,
 																non_sequences = noseqs,
