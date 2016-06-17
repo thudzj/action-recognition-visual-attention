@@ -9,7 +9,7 @@ def main(job_id, params):
     print 'Anything printed here will end up in the output directory for job #%d' % job_id
     print params
 
-    trainerr, validerr, testerr = train(dim_out=params['dim_out'][0],
+    train(dim_out=params['dim_out'][0],
                                         ctx_dim=params['ctx_dim'][0],
                                         dim=params['dim'][0],
                                         n_actions=params['n_actions'][0],
@@ -33,7 +33,6 @@ def main(job_id, params):
                                         reload_=params['reload'][0],
                                         times=params['times'][0]
                              )
-    return validerr
 
 if __name__ == '__main__':
     options = {
@@ -45,7 +44,7 @@ if __name__ == '__main__':
         'n_layers_out': [1],
         'n_layers_init': [1],
         'ctx2out': [False],
-        'max_epochs': [15],
+        'max_epochs': [100],
         'dispFreq': [20],
         'decay_c': [0.00001], 
         'alpha_c': [0.0], 

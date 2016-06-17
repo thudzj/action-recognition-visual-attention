@@ -242,7 +242,7 @@ def lstm_cond_layer(tparams, state_below, options, prefix='lstm',
             return _x[:, :, n*dim:(n+1)*dim]
         return _x[:, n*dim:(n+1)*dim]
 
-    def _step(h_, c_, a_, ct_, _x):
+    def _step(h_, c_, a_, ct_, x_):
         # xt, ht-1, ct-1, alpha, ctx
         # attention
         # print '\n\ncheck\n\n'
@@ -315,7 +315,7 @@ def build_model(tparams, options):
     ctxdim = x.shape[2]
   
     # action labels
-    y = tensor.matrix('y', dtype='int64')
+    y = tensor.vector('y', dtype='int64')
     ctx = x
 
     # initial state/cell
@@ -583,8 +583,8 @@ def train(dim_out=100, # hidden layer dim for outputs
 
     print 'Loading data start'
     if dataset == "obj101":
-			train = obj101("googlenet_train_features_tmp.hkl", "googlenet_train_labels.hkl")
-			test = obj101("googlenet_test_features_tmp.hkl", "googlenet_test_labels.hkl")
+			train = obj101("obj101/googlenet_train_features_tmp.hkl", "obj101/googlenet_train_labels.hkl")
+			test = obj101("obj101/googlenet_test_features_tmp.hkl", "obj101/googlenet_test_labels.hkl")
     print 'Loading data finish'
 
     print 'Building model'
@@ -676,11 +676,11 @@ def train(dim_out=100, # hidden layer dim for outputs
 									acc_list.append(acc)
 								cost_mean = numpy.mean(cost_list)
 								acc_mean = numpy.mean(acc_list)
-                if uidx == 0 or acc_mean > acc_max:
-										best_p = unzip(tparams) # p for min valid err / max valid acc
-										acc_max = acc_mean
+                                                                if uidx == 0 or acc_mean > acc_max:
+									best_p = unzip(tparams) # p for min valid err / max valid acc
+									acc_max = acc_mean
 
-                print 'Cost ', cost_mean, 'acc', acc_mean
+                						print 'Cost ', cost_mean, 'acc', acc_mean
 
     if best_p is not None:
         zipp(best_p, tparams)
