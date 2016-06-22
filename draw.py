@@ -77,7 +77,7 @@ for i in xrange(alpha.shape[0]):
     # read frame
 		image = skimage.io.imread(fname[i])
 		# add an Alpha layer to the RGB image
-		image = cv2.resize(image, (224, 224))
+		image = skimage.transform.resize(image, (224, 224))
 		img = numpy.array(image)
 		alphalayer = numpy.ones((224,224,1))*255
 		img = numpy.dstack((img,alphalayer)) #rgba
