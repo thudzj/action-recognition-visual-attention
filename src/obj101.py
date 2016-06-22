@@ -1,5 +1,6 @@
 import hickle as hkl
 import numpy
+import random
 
 def dense_to_one_hot(labels_dense, num_classes=10):
   """Convert class labels from scalars to one-hot vectors."""
@@ -21,6 +22,8 @@ class obj101:
 		self._labels = labels
 		self._epochs_completed = 0
 		self._index_in_epoch = 0
+		self.train_name_file = "obj101/train.txt"
+		self.vid_name_file = "obj101/test.txt"
   @property
   def images(self):
     return self._images
@@ -33,6 +36,14 @@ class obj101:
   @property
   def epochs_completed(self):
     return self._epochs_completed
+		
+  def random_batch(self, batch_size):
+		i = random.randint(0, self.num_examples - batch_size)
+		fnames = []
+		for line in open(self.vid_name_file):
+			fnames.append(line.strip())
+		return self._images[i:i+batch_size], self._labels[i:i+batch_size], fnames[i:i+batch_size]
+		
   def next_batch(self, batch_size):
     """Return the next `batch_size` examples from this data set."""
     start = self._index_in_epoch
